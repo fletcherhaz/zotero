@@ -136,6 +136,7 @@ const xpcomFilesLocal = [
 	'storage/webdav',
 	'syncedSettings',
 	'timeline',
+	'updateMetadata',
 	'uri',
 	'users',
 	'translation/translate_item',
