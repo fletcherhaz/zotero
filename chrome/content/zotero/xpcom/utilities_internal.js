@@ -1446,7 +1446,8 @@ Zotero.Utilities.Internal = {
 		let newItems;
 		try {
 			newItems = await translate.translate({
-				libraryID: false
+				libraryID: false,
+				saveAttachments: false
 			});
 		}
 		catch (e) {
