@@ -91,6 +91,9 @@ Zotero.UpdateMetadataDialog = function (options) {
 	 * @private
 	 */
 	function _onWindowLoaded() {
+		// Set font size from pref
+		Zotero.setFontSize(_progressWindow.document.getElementById('update-metadata-container'));
+
 		_progressWindow.document.title = Zotero.getString('updateMetadata.title');
 		_progressIndicator = _progressWindow.document.getElementById('progress-indicator');
 		_progressWindow.document.getElementById('cancel-button')
@@ -135,6 +138,8 @@ Zotero.UpdateMetadataDialog = function (options) {
 			diffTableContainer,
 			{
 				onToggle: options.onToggle,
+				onDone: options.onDone,
+				onOpen: options.onOpen,
 				onDoubleClick: options.onDoubleClick,
 				onApply: options.onApply
 			},

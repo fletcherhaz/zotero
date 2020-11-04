@@ -35,7 +35,7 @@ const MAX_DIFF_SEGMENT_LENGTH = 60;
 
 const Field = (props) => {
 	const { itemID, field, onToggle } = props;
-	const { fieldName, fieldLabel, oldLabel, newLabel, isDisabled } = field;
+	const { fieldName, fieldLabel, oldLabel, newLabel, isDisabled, isApplied } = field;
 
 	function cut(str, index) {
 		if (index < 0) {
@@ -76,7 +76,9 @@ const Field = (props) => {
 	}
 
 	function handleClick() {
-		onToggle(itemID, fieldName, !isDisabled);
+		if (!isApplied) {
+			onToggle(itemID, fieldName, !isDisabled);
+		}
 	}
 
 	function getDiff(oldValue, newValue) {
@@ -127,7 +129,7 @@ const Field = (props) => {
 
 	return (
 		<div
-			className={cx('diff-table-field', { disabled: isDisabled })}
+			className={cx('diff-table-field', { disabled: isDisabled, applied: isApplied })}
 			onClick={handleClick}
 		>
 			<div className="name">{newLabel ? fieldLabel + ':' : <s>{fieldLabel}:</s>}</div>

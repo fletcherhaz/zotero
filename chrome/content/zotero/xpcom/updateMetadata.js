@@ -49,6 +49,20 @@ Zotero.UpdateMetadata = new function () {
 			}
 			_update();
 		},
+		onDone(itemID) {
+			let row = _rows.find(row => row.itemID === itemID);
+			if (row) {
+				row.isOpen = false;
+				_update();
+			}
+		},
+		onOpen(itemID) {
+			let row = _rows.find(row => row.itemID === itemID);
+			if (row) {
+				row.isOpen = true;
+				_update();
+			}
+		},
 		onDoubleClick(itemID) {
 			let win = Services.wm.getMostRecentWindow('navigator:browser');
 			if (win) {
@@ -56,8 +70,9 @@ Zotero.UpdateMetadata = new function () {
 				win.focus();
 			}
 		},
-		onApply(itemID) {
-			_apply(itemID);
+		async onApply(itemID) {
+			await _apply(itemID);
+			_update();
 		},
 		onCancel() {
 			_rows = [];
@@ -113,27 +128,27 @@ Zotero.UpdateMetadata = new function () {
 	 * @param ids
 	 */
 	this.notify = function (event, type, ids) {
-		let updated = false;
-		for (let id of ids) {
-			let row = _rows.find(row => row.itemID === id);
-			if (row) {
-				let item = Zotero.Items.get(row.itemID);
-				row.title = item.getField('title', false, true);
-				if (row.newItem) {
-					_setRowFields(row, item, row.newItem);
-					// If item type changes it's safer to un-accept all fields,
-					// when the current item is modified (i.e. in the item pane)
-					if (_isItemTypeChanged(row)) {
-						row.fields.forEach(field => field.isDisabled = true);
-					}
-				}
-				updated = true;
-			}
-		}
-
-		if (updated) {
-			_update();
-		}
+		// let updated = false;
+		// for (let id of ids) {
+		// 	let row = _rows.find(row => row.itemID === id);
+		// 	if (row) {
+		// 		let item = Zotero.Items.get(row.itemID);
+		// 		row.title = item.getField('title', false, true);
+		// 		if (row.newItem) {
+		// 			_setRowFields(row, item, row.newItem);
+		// 			// If item type changes it's safer to un-accept all fields,
+		// 			// when the current item is modified (i.e. in the item pane)
+		// 			if (_isItemTypeChanged(row)) {
+		// 				row.fields.forEach(field => field.isDisabled = true);
+		// 			}
+		// 		}
+		// 		updated = true;
+		// 	}
+		// }
+		//
+		// if (updated) {
+		// 	_update();
+		// }
 	};
 
 	/**
@@ -180,7 +195,8 @@ Zotero.UpdateMetadata = new function () {
 				message: '',
 				title: item.getField('title', false, true),
 				fields: [],
-				accepted: {}
+				accepted: {},
+				isOpen: true
 			};
 
 			if (existingRowIdx >= 0) {
@@ -446,7 +462,8 @@ Zotero.UpdateMetadata = new function () {
 				oldLabel: oldItemTypeLocalized,
 				newValue: newItemType,
 				newLabel: newItemTypeLocalized,
-				isDisabled: _isFieldCurrentlyDisabled(row, 'itemType', isMetadataDisabled)
+				isDisabled: _isFieldCurrentlyDisabled(row, 'itemType', isMetadataDisabled),
+				isApplied: false
 			});
 
 			// Clone the old item and change its type to simplify field comparision later
@@ -475,7 +492,8 @@ Zotero.UpdateMetadata = new function () {
 				oldLabel: oldValue,
 				newValue,
 				newLabel: newValue,
-				isDisabled: _isFieldCurrentlyDisabled(row, fieldName, isFieldDisabled)
+				isDisabled: _isFieldCurrentlyDisabled(row, fieldName, isFieldDisabled),
+				isApplied: false
 			});
 		}
 
@@ -500,7 +518,8 @@ Zotero.UpdateMetadata = new function () {
 				oldLabel: oldCreatorsFormatted,
 				newValue: newCreators,
 				newLabel: newCreatorsFormatted,
-				isDisabled: _isFieldCurrentlyDisabled(row, 'creators', isMetadataDisabled)
+				isDisabled: _isFieldCurrentlyDisabled(row, 'creators', isMetadataDisabled),
+				isApplied: false
 			};
 
 			// Find title index to insert creators after
@@ -520,14 +539,13 @@ Zotero.UpdateMetadata = new function () {
 	 * @private
 	 */
 	async function _apply(itemID) {
-		for (let row of _rows) {
-			if (itemID && row.itemID !== itemID) {
-				continue;
-			}
+		let row = _rows.find(row => row.itemID === itemID);
+		if (row) {
 			let item = await Zotero.Items.getAsync(row.itemID);
 			let itemTypeField = row.fields.find(field => field.fieldName === 'itemType');
 			if (itemTypeField && !itemTypeField.isDisabled) {
 				item.setType(Zotero.ItemTypes.getID(itemTypeField.newValue));
+				itemTypeField.isApplied = true;
 			}
 
 			let creatorsField = row.fields.find(field => field.fieldName === 'creators');
@@ -535,6 +553,7 @@ Zotero.UpdateMetadata = new function () {
 				// Clear creators, since `setCreators` doesn't do that by itself, TODO: Fix
 				item.setCreators([]);
 				item.setCreators(creatorsField.newValue);
+				creatorsField.isApplied = true;
 			}
 
 			let supportedFieldNames = Zotero.ItemFields.getItemTypeFields(item.itemTypeID);
@@ -543,6 +562,7 @@ Zotero.UpdateMetadata = new function () {
 			for (let field of row.fields) {
 				if (!field.isDisabled && supportedFieldNames.includes(field.fieldName)) {
 					item.setField(field.fieldName, field.newValue);
+					field.isApplied = true;
 				}
 			}
 			await item.saveTx();

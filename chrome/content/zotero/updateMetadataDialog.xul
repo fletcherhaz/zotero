@@ -12,7 +12,7 @@
 		width="650"
 		height="550"
 		style="padding: 10px;">
-	<vbox flex="1">
+	<vbox id="update-metadata-container" flex="1">
 		<label id="label" control="progress-indicator" value=""/>
 		<hbox align="center">
 			<progressmeter id="progress-indicator" mode="determined" flex="1"/>
@@ -21,8 +21,9 @@
 			<button id="close-button" label="&zotero.general.close;"/>
 		</hbox>
 		<html:div id="diff-table-container" style="padding: 5px; min-width: 100px"></html:div>
-		<hbox>
-			<button id="apply-button" label="&zotero.general.applyUpdates;"/>
+		<hbox align="right">
+			<button id="apply-button" default="true" label="&zotero.general.applyUpdates;"/>
+			<button id="done-button" label="&zotero.general.done;"/>
 		</hbox>
 	</vbox>
 </window>

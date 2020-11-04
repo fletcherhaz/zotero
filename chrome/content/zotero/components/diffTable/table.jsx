@@ -30,8 +30,8 @@ import PropTypes from 'prop-types';
 import {
 	IconTick,
 	IconCross,
-	IconArrowRefresh,
-	IconPuzzleArrow,
+	IconArrowRotateAnimated,
+	IconWarning,
 	IconBulletBlueEmpty
 } from '../icons';
 
@@ -58,39 +58,116 @@ const Table = React.forwardRef((props, ref) => {
 	return (
 		<div className="diff-table" onMouseDown={handleMouseDown}>
 			<div className="body">
-				{rows.map(row => (
-					<div key={row.itemID} className="row">
+				{rows.map((row) => {
+					let numberOfPendingChanges = 0;
+					let numberOfAppliedChanges = 0;
+					let numberOfDisabledChanges = 0;
+
+					for (let field of row.fields) {
+						if (field.isApplied) {
+							numberOfAppliedChanges += 1;
+						}
+						else if (field.isDisabled) {
+							numberOfDisabledChanges += 1;
+						}
+						else {
+							numberOfPendingChanges += 1;
+						}
+					}
+
+					// We are done if there are no fields or all changes have been applied
+					const isDone = !row.fields.length || numberOfAppliedChanges === row.fields.length;
+
+					return (<div key={row.itemID} className="row">
 						<div className="right fields-view">
 							<div className="header" onDoubleClick={() => props.onDoubleClick(row.itemID)}>
-								{row.status === Zotero.UpdateMetadata.ROW_SUCCEEDED && row.fields.length && <IconPuzzleArrow/>
-								|| row.status === Zotero.UpdateMetadata.ROW_SUCCEEDED && !row.fields.length && <IconTick/>
-								|| row.status === Zotero.UpdateMetadata.ROW_PROCESSING && <IconArrowRefresh/>
+								{row.status === Zotero.UpdateMetadata.ROW_SUCCEEDED && row.fields.length && <IconWarning/>
+								|| row.status === Zotero.UpdateMetadata.ROW_SUCCEEDED && isDone && <IconTick/>
+								|| row.status === Zotero.UpdateMetadata.ROW_PROCESSING && <IconArrowRotateAnimated/>
 								|| row.status === Zotero.UpdateMetadata.ROW_FAILED && <IconCross/>
 								|| <IconBulletBlueEmpty/>}
 								<div className="title">{row.title}</div>
 							</div>
 							{row.message && <div className="message">{row.message}</div>}
-							<div className="fields">
-								{row.fields.map(field => (
-									<Field key={field.fieldName} itemID={row.itemID} field={field} onToggle={handleFieldToggle}/>
-								))}
-							</div>
-							{row.status === Zotero.UpdateMetadata.ROW_SUCCEEDED && row.fields.length > 0 && (
-								<div className="footer">
-									<button
-										className="toggle-button"
-										onClick={() => props.onToggle(row.itemID)}>
-										<FormattedMessage
-											id={row.fields.find(field => !field.isDisabled) ? 'zotero.general.deselectAll' : 'zotero.general.selectAll'}
+							{row.isOpen && (
+								<div className="fields">
+									{row.fields.map(field => (
+										<Field
+											key={field.fieldName}
+											itemID={row.itemID}
+											field={field}
+											onToggle={handleFieldToggle}
 										/>
+									))}
+								</div>
+							)}
+							{!row.isOpen && row.fields.length > 0 && (
+								<div className="fields-closed">
+									<div className="summary">
+										<span className="pending">
+											{numberOfPendingChanges > 1 && (
+												Zotero.getString('updateMetadata.pendingChanges.plural', numberOfPendingChanges)
+											)}
+											{numberOfPendingChanges === 1 && (
+												Zotero.getString('updateMetadata.pendingChanges', numberOfPendingChanges)
+											)}
+											{numberOfPendingChanges > 0 && numberOfAppliedChanges > 0 || numberOfDisabledChanges > 0 ? ', ' : ''}
+										</span>
+										{numberOfAppliedChanges > 1 && (
+											Zotero.getString('updateMetadata.appliedChanges.plural', numberOfAppliedChanges)
+										)}
+										{numberOfAppliedChanges === 1 && (
+											Zotero.getString('updateMetadata.appliedChanges', numberOfAppliedChanges)
+										)}
+										{numberOfAppliedChanges > 0 && numberOfDisabledChanges > 0 ? ', ' : ''}
+										{numberOfDisabledChanges > 1 && (
+											Zotero.getString('updateMetadata.ignoredChanges.plural', numberOfDisabledChanges)
+										)}
+										{numberOfDisabledChanges === 1 && (
+											Zotero.getString('updateMetadata.ignoredChanges', numberOfDisabledChanges)
+										)}
+									</div>
+									<button
+										className="show-button"
+										onClick={() => props.onOpen(row.itemID)}
+									>
+										<FormattedMessage id="zotero.general.show"/>
 									</button>
-									<button className="apply-button" onClick={() => props.onApply(row.itemID)}>
-										<FormattedMessage id="zotero.general.apply"/>
+								</div>
+							)}
+							{row.status === Zotero.UpdateMetadata.ROW_SUCCEEDED && row.isOpen && row.fields.length > 0 && (
+								<div className="footer">
+									{!isDone && (
+										<button
+											className="toggle-button"
+											onClick={() => props.onToggle(row.itemID)}>
+											<FormattedMessage
+												id={numberOfPendingChanges ? 'zotero.general.deselectAll' : 'zotero.general.selectAll'}
+											/>
+										</button>
+									)}
+									<div className="spacer"></div>
+									{numberOfPendingChanges > 0 && (
+										<button
+											className="apply-button"
+											default={true}
+											onClick={() => props.onApply(row.itemID)}
+										>
+											<FormattedMessage id="zotero.general.apply"/>
+										</button>
+									)}
+									<button
+										className="hide-button"
+										onClick={() => props.onDone(row.itemID)}
+									>
+										<FormattedMessage id="zotero.general.hide"/>
 									</button>
-								</div>)}
+								</div>
+							)}
+							<div className="separator"></div>
 						</div>
-					</div>
-				))}
+					</div>);
+				})}
 			</div>
 		</div>
 	);
@@ -99,6 +176,8 @@ const Table = React.forwardRef((props, ref) => {
 Table.propTypes = {
 	onToggle: PropTypes.func,
 	onApply: PropTypes.func,
+	onDone: PropTypes.func,
+	onOpen: PropTypes.func,
 	onDoubleClick: PropTypes.func
 };
 
