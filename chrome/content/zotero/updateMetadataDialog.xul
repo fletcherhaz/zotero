@@ -18,12 +18,11 @@
 			<progressmeter id="progress-indicator" mode="determined" flex="1"/>
 			<button id="cancel-button" label="&zotero.general.cancel;"/>
 			<button id="minimize-button" label="&zotero.general.minimize;"/>
-			<button id="close-button" label="&zotero.general.close;"/>
+			<button id="close-button" label="&zotero.general.done;"/>
 		</hbox>
 		<html:div id="diff-table-container" style="padding: 5px; min-width: 100px"></html:div>
 		<hbox align="right">
-			<button id="apply-button" default="true" label="&zotero.general.applyUpdates;"/>
-			<button id="done-button" label="&zotero.general.done;"/>
+			<button id="apply-all-button" default="true" label="&zotero.general.applyUpdates;"/>
 		</hbox>
 	</vbox>
 </window>

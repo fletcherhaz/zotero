@@ -22,9 +22,8 @@
 <!ENTITY zotero.general.smaller                            "Smaller">
 <!ENTITY zotero.general.reset                              "Reset">
 <!ENTITY zotero.general.done                               "Done">
-<!ENTITY zotero.general.hide                               "Hide">
-<!ENTITY zotero.general.show                               "Show">
-<!ENTITY zotero.general.apply                              "Apply Selected Changes">
+<!ENTITY zotero.general.ignore                             "Ignore">
+<!ENTITY zotero.general.apply                              "Apply">
 <!ENTITY zotero.general.applyUpdates                       "Apply All">
 
 

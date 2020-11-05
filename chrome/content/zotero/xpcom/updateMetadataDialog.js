@@ -26,6 +26,7 @@
 Zotero.UpdateMetadataDialog = function (options) {
 	let _progressWindow;
 	let _progressIndicator;
+	let _applyAll;
 	let _showMinimize = true;
 	let _diffTable;
 
@@ -84,6 +85,10 @@ Zotero.UpdateMetadataDialog = function (options) {
 		let processed = rows.filter(row => [Zotero.UpdateMetadata.ROW_SUCCEEDED,
 			Zotero.UpdateMetadata.ROW_FAILED].includes(row.status)).length;
 		_updateProgress(total, processed);
+
+		// Disabled 'Apply All' when no pending changes left
+		let hasPending = rows.find(row => row.fields.length !== 0 && row.isDone);
+		_applyAll.disabled = hasPending ? 'true' : false;
 	};
 
 	/**
@@ -114,8 +119,8 @@ Zotero.UpdateMetadataDialog = function (options) {
 			options.onClose();
 		}, false);
 
-		_progressWindow.document.getElementById('apply-button')
-		.addEventListener('command', () => {
+		_applyAll = _progressWindow.document.getElementById('apply-all-button');
+		_applyAll.addEventListener('command', () => {
 			options.onApply();
 		}, false);
 
@@ -138,8 +143,7 @@ Zotero.UpdateMetadataDialog = function (options) {
 			diffTableContainer,
 			{
 				onToggle: options.onToggle,
-				onDone: options.onDone,
-				onOpen: options.onOpen,
+				onIgnore: options.onIgnore,
 				onDoubleClick: options.onDoubleClick,
 				onApply: options.onApply
 			},
