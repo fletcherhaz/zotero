@@ -120,7 +120,7 @@ Zotero.UpdateMetadataDialog = function (options) {
 
 		_applyAll = _progressWindow.document.getElementById('apply-all-button');
 		_applyAll.addEventListener('command', () => {
-			options.onApply();
+			options.onApplyAll();
 		}, false);
 
 		_progressWindow.addEventListener('keypress', function (e) {

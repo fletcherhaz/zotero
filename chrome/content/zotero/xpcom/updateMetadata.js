@@ -67,8 +67,16 @@ Zotero.UpdateMetadata = new function () {
 				win.focus();
 			}
 		},
-		onApply(itemID) {
-			_apply(itemID);
+		async onApply(itemID) {
+			let row = _rows.find(row => row.itemID === itemID);
+			if (row) {
+				await _apply(row);
+				_update();
+			}
+		},
+		async onApplyAll() {
+			await Zotero.Promise.all(_rows.map(row => _apply(row)));
+			_update();
 		},
 		onCancel() {
 			_rows = [];
@@ -501,34 +509,30 @@ Zotero.UpdateMetadata = new function () {
 	 * @returns {Promise}
 	 * @private
 	 */
-	async function _apply(itemID) {
-		let row = _rows.find(row => row.itemID === itemID);
-		if (row) {
-			let item = await Zotero.Items.getAsync(row.itemID);
-			let itemTypeField = row.fields.find(field => field.fieldName === 'itemType');
-			if (itemTypeField && !itemTypeField.isDisabled) {
-				item.setType(Zotero.ItemTypes.getID(itemTypeField.newValue));
-			}
-
-			let creatorsField = row.fields.find(field => field.fieldName === 'creators');
-			if (creatorsField && !creatorsField.isDisabled) {
-				// Clear creators, since `setCreators` doesn't do that by itself, TODO: Fix
-				item.setCreators([]);
-				item.setCreators(creatorsField.newValue);
-			}
-
-			let supportedFieldNames = Zotero.ItemFields.getItemTypeFields(item.itemTypeID);
-			supportedFieldNames = supportedFieldNames.map(x => Zotero.ItemFields.getName(x));
-
-			for (let field of row.fields) {
-				if (!field.isDisabled && supportedFieldNames.includes(field.fieldName)) {
-					item.setField(field.fieldName, field.newValue);
-				}
-			}
-			await item.saveTx();
-			row.isDone = true;
-			_update();
+	async function _apply(row) {
+		let item = await Zotero.Items.getAsync(row.itemID);
+		let itemTypeField = row.fields.find(field => field.fieldName === 'itemType');
+		if (itemTypeField && !itemTypeField.isDisabled) {
+			item.setType(Zotero.ItemTypes.getID(itemTypeField.newValue));
 		}
+
+		let creatorsField = row.fields.find(field => field.fieldName === 'creators');
+		if (creatorsField && !creatorsField.isDisabled) {
+			// Clear creators, since `setCreators` doesn't do that by itself, TODO: Fix
+			item.setCreators([]);
+			item.setCreators(creatorsField.newValue);
+		}
+
+		let supportedFieldNames = Zotero.ItemFields.getItemTypeFields(item.itemTypeID);
+		supportedFieldNames = supportedFieldNames.map(x => Zotero.ItemFields.getName(x));
+
+		for (let field of row.fields) {
+			if (!field.isDisabled && supportedFieldNames.includes(field.fieldName)) {
+				item.setField(field.fieldName, field.newValue);
+			}
+		}
+		await item.saveTx();
+		row.isDone = true;
 	}
 };
 
