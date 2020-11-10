@@ -108,9 +108,8 @@ Zotero.UpdateMetadataDialog = function (options) {
 		}, false);
 
 		_progressWindow.document.getElementById('minimize-button')
-		.addEventListener('command', function () {
-			_progressWindow.close();
-			options.onClose();
+		.addEventListener('command', () => {
+			this.close();
 		}, false);
 
 		_progressWindow.document.getElementById('close-button')

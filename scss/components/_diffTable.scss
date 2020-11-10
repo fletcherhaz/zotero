@@ -42,7 +42,7 @@
 			}
 
 			.added {
-				background-color: rgba(169, 237, 174, 0.4);
+				background-color: rgba(169, 237, 174, 0.6);
 			}
 		}
 	}
@@ -92,6 +92,10 @@
 					overflow: hidden;
 					text-overflow: ellipsis;
 					white-space: nowrap;
+
+					&:hover {
+						opacity: 0.7;
+					}
 				}
 			}
 
