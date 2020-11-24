@@ -1932,7 +1932,8 @@ Zotero.CollectionTreeView.prototype.drop = Zotero.Promise.coroutine(function* (r
 		tags: Zotero.Prefs.get('groups.copyTags'),
 		childNotes: Zotero.Prefs.get('groups.copyChildNotes'),
 		childLinks: Zotero.Prefs.get('groups.copyChildLinks'),
-		childFileAttachments: Zotero.Prefs.get('groups.copyChildFileAttachments')
+		childFileAttachments: Zotero.Prefs.get('groups.copyChildFileAttachments'),
+		toPublications: targetTreeRow.isPublications()
 	};
 	
 	var targetLibraryID = targetTreeRow.ref.libraryID;
@@ -1966,7 +1967,7 @@ Zotero.CollectionTreeView.prototype.drop = Zotero.Promise.coroutine(function* (r
 						// Items
 						else {
 							var item = yield Zotero.Items.getAsync(desc.id);
-							var id = yield Zotero.Items.copyItem(item, targetLibraryID, copyOptions, targetTreeRow);
+							var id = yield Zotero.Items.copyItemToLibrary(item, targetLibraryID, copyOptions);
 							// Standalone attachments might not get copied
 							if (!id) {
 								continue;
@@ -2091,7 +2092,7 @@ Zotero.CollectionTreeView.prototype.drop = Zotero.Promise.coroutine(function* (r
 				function (chunk) {
 					return Zotero.DB.executeTransaction(async function () {
 						for (let item of chunk) {
-							var id = await Zotero.Items.copyItem(item, targetLibraryID, copyOptions, targetTreeRow)
+							var id = await Zotero.Items.copyItemToLibrary(item, targetLibraryID, copyOptions);
 							// Standalone attachments might not get copied
 							if (!id) {
 								continue;

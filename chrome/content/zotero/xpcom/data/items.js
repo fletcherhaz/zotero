@@ -860,20 +860,41 @@ Zotero.Items = function() {
 			Zotero.Notifier.trigger('removeDuplicatesMaster', 'item', item.id);
 		}.bind(this));
 	};
-	
-	
-	this.copyItem = Zotero.Promise.coroutine(function* (item, targetLibraryID, options, targetTreeRow) {
-		var targetLibraryType = Zotero.Libraries.get(targetLibraryID).libraryType;
+
+
+	/**
+	 * Copy the given item to the given library
+	 *
+	 * If the item is a linked item return that item ID and restore the item if it was deleted
+	 *
+	 * @param {Zotero.Item} item
+	 * @param {Integer} targetLibraryID
+	 * @param {Object} options
+	 * @param {Boolean} [options.tags] - Whether to copy tags
+	 * @param {Boolean} [options.childNotes] - Whether to copy notes
+	 * @param {Boolean} [options.childLinks] - Whether to copy links
+	 * @param {Boolean} [options.childFileAttachments] - Whether to copy attachments
+	 * @param {Boolean} [options.toPublications] - True if we are copying to My Publications
+	 * @returns {Promise<Integer>} The new Item ID
+	 */
+	this.copyItemToLibrary = async function (item, targetLibraryID, options) {
+		let targetLibrary = Zotero.Libraries.get(targetLibraryID);
+		
+		let tags = options.tags;
+		let childNotes = options.childNotes;
+		let childLinks = options.childLinks;
+		let childFileAttachments = options.childFileAttachments;
+		let toPublications = options.toPublications;
 
 		// Check if there's already a copy of this item in the library
-		var linkedItem = yield item.getLinkedItem(targetLibraryID, true);
+		var linkedItem = await item.getLinkedItem(targetLibraryID, true);
 		if (linkedItem) {
 			// If linked item is in the trash, undelete it and remove it from collections
 			// (since it shouldn't be restored to previous collections)
 			if (linkedItem.deleted) {
 				linkedItem.setCollections();
 				linkedItem.deleted = false;
-				yield linkedItem.save({
+				await linkedItem.save({
 					skipSelect: true
 				});
 			}
@@ -919,7 +940,7 @@ Zotero.Items = function() {
 
 		// Standalone attachment
 		if (item.isAttachment()) {
-			var linkMode = item.attachmentLinkMode;
+			let linkMode = item.attachmentLinkMode;
 
 			// Skip linked files
 			if (linkMode == Zotero.Attachments.LINK_MODE_LINKED_FILE) {
@@ -927,7 +948,7 @@ Zotero.Items = function() {
 				return false;
 			}
 
-			if (!targetTreeRow.filesEditable) {
+			if (!targetLibrary.filesEditable) {
 				Zotero.debug("Skipping standalone file attachment on drag");
 				return false;
 			}
@@ -936,14 +957,14 @@ Zotero.Items = function() {
 		}
 
 		// Create new clone item in target library
-		var newItem = item.clone(targetLibraryID, { skipTags: !options.tags });
+		var newItem = item.clone(targetLibraryID, { skipTags: !tags });
 
-		var newItemID = yield newItem.save({
+		var newItemID = await newItem.save({
 			skipSelect: true
 		});
 
 		// Record link
-		yield newItem.addLinkedItem(item);
+		await newItem.addLinkedItem(item);
 
 		if (item.isNote()) {
 			return newItemID;
@@ -952,53 +973,50 @@ Zotero.Items = function() {
 		// For regular items, add child items if prefs and permissions allow
 
 		// Child notes
-		if (options.childNotes) {
+		if (childNotes) {
 			var noteIDs = item.getNotes();
 			var notes = Zotero.Items.get(noteIDs);
 			for (let note of notes) {
-				let newNote = note.clone(targetLibraryID, { skipTags: !options.tags });
+				let newNote = note.clone(targetLibraryID, { skipTags: !tags });
 				newNote.parentID = newItemID;
-				yield newNote.save({
+				await newNote.save({
 					skipSelect: true
-				})
+				});
 
-				yield newNote.addLinkedItem(note);
+				await newNote.addLinkedItem(note);
 			}
 		}
 
 		// Child attachments
-		if (options.childLinks || options.childFileAttachments) {
+		if (childLinks || childFileAttachments) {
 			var attachmentIDs = item.getAttachments();
 			var attachments = Zotero.Items.get(attachmentIDs);
-			for (let attachment of attachments) {
-				var linkMode = attachment.attachmentLinkMode;
+			await Zotero.Promise.all(attachments.map((attachment) => {
+				let linkMode = attachment.attachmentLinkMode;
 
 				// Skip linked files
 				if (linkMode == Zotero.Attachments.LINK_MODE_LINKED_FILE) {
 					Zotero.debug("Skipping child linked file attachment on drag");
-					continue;
+					return Promise.resolve();
 				}
 
 				// Skip imported files if we don't have pref and permissions
-				if (linkMode == Zotero.Attachments.LINK_MODE_LINKED_URL) {
-					if (!options.childLinks) {
-						Zotero.debug("Skipping child link attachment on drag");
-						continue;
-					}
+				if (!childLinks && linkMode == Zotero.Attachments.LINK_MODE_LINKED_URL) {
+					Zotero.debug("Skipping child link attachment on drag");
+					return Promise.resolve();
 				}
-				else {
-					if (!options.childFileAttachments
-						|| (!targetTreeRow.filesEditable && !targetTreeRow.isPublications())) {
-						Zotero.debug("Skipping child file attachment on drag");
-						continue;
-					}
+				else if (!childFileAttachments
+					|| (!targetLibrary.filesEditable && !toPublications)) {
+					Zotero.debug("Skipping child file attachment on drag");
+					return Promise.resolve();
 				}
-				yield Zotero.Attachments.copyAttachmentToLibrary(attachment, targetLibraryID, newItemID);
-			}
+
+				return Zotero.Attachments.copyAttachmentToLibrary(attachment, targetLibraryID, newItemID);
+			}));
 		}
 
 		return newItemID;
-	});
+	};
 
 
 	this.trash = Zotero.Promise.coroutine(function* (ids) {
