@@ -875,20 +875,24 @@ Zotero.Items = function() {
 	 * @param {Boolean} [options.childLinks] - Whether to copy links
 	 * @param {Boolean} [options.childFileAttachments] - Whether to copy attachments
 	 * @param {Boolean} [options.toPublications] - True if we are copying to My Publications
+	 * @param {Boolean} [options.linkItems=true] - Link item and all sub-item
 	 * @returns {Promise<Integer>} The new Item ID
 	 */
 	this.copyItemToLibrary = async function (item, targetLibraryID, options) {
 		let targetLibrary = Zotero.Libraries.get(targetLibraryID);
 		
+		// TODO: Should this require transaction?
 		let tags = options.tags;
 		let childNotes = options.childNotes;
 		let childLinks = options.childLinks;
 		let childFileAttachments = options.childFileAttachments;
 		let toPublications = options.toPublications;
+		let linkItems = options.linkItems !== undefined ? options.linkItems : true;
 
 		// Check if there's already a copy of this item in the library
 		var linkedItem = await item.getLinkedItem(targetLibraryID, true);
 		if (linkedItem) {
+			Zotero.debug('Found linked item');
 			// If linked item is in the trash, undelete it and remove it from collections
 			// (since it shouldn't be restored to previous collections)
 			if (linkedItem.deleted) {
@@ -953,7 +957,12 @@ Zotero.Items = function() {
 				return false;
 			}
 
-			return Zotero.Attachments.copyAttachmentToLibrary(item, targetLibraryID);
+			return Zotero.Attachments.copyAttachmentToLibrary(
+				item,
+				targetLibraryID,
+				false,
+				{ linkItems }
+			);
 		}
 
 		// Create new clone item in target library
@@ -964,7 +973,9 @@ Zotero.Items = function() {
 		});
 
 		// Record link
-		await newItem.addLinkedItem(item);
+		if (linkItems) {
+			await newItem.addLinkedItem(item);
+		}
 
 		if (item.isNote()) {
 			return newItemID;
@@ -976,42 +987,49 @@ Zotero.Items = function() {
 		if (childNotes) {
 			var noteIDs = item.getNotes();
 			var notes = Zotero.Items.get(noteIDs);
-			for (let note of notes) {
+			await Zotero.Promise.all(notes.map(async (note) => {
 				let newNote = note.clone(targetLibraryID, { skipTags: !tags });
 				newNote.parentID = newItemID;
 				await newNote.save({
 					skipSelect: true
 				});
 
-				await newNote.addLinkedItem(note);
-			}
+				if (linkItems) {
+					await newNote.addLinkedItem(note);
+				}
+			}));
 		}
 
 		// Child attachments
 		if (childLinks || childFileAttachments) {
 			var attachmentIDs = item.getAttachments();
 			var attachments = Zotero.Items.get(attachmentIDs);
-			await Zotero.Promise.all(attachments.map((attachment) => {
+			await Zotero.Promise.all(attachments.map(async (attachment) => {
 				let linkMode = attachment.attachmentLinkMode;
 
 				// Skip linked files
 				if (linkMode == Zotero.Attachments.LINK_MODE_LINKED_FILE) {
 					Zotero.debug("Skipping child linked file attachment on drag");
-					return Promise.resolve();
+					return;
 				}
 
 				// Skip imported files if we don't have pref and permissions
 				if (!childLinks && linkMode == Zotero.Attachments.LINK_MODE_LINKED_URL) {
 					Zotero.debug("Skipping child link attachment on drag");
-					return Promise.resolve();
+					return;
 				}
 				else if (!childFileAttachments
 					|| (!targetLibrary.filesEditable && !toPublications)) {
 					Zotero.debug("Skipping child file attachment on drag");
-					return Promise.resolve();
+					return;
 				}
 
-				return Zotero.Attachments.copyAttachmentToLibrary(attachment, targetLibraryID, newItemID);
+				await Zotero.Attachments.copyAttachmentToLibrary(
+					attachment,
+					targetLibraryID,
+					newItemID,
+					{ linkItems }
+				);
 			}));
 		}
 

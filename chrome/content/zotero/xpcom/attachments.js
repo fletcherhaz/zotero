@@ -2423,11 +2423,14 @@ Zotero.Attachments = new function(){
 	/**
 	 * Copy attachment item, including file, to another library
 	 */
-	this.copyAttachmentToLibrary = Zotero.Promise.coroutine(function* (attachment, libraryID, parentItemID) {
+	this.copyAttachmentToLibrary = Zotero.Promise.coroutine(function* (attachment, libraryID, parentItemID, options) {
 		if (attachment.libraryID == libraryID) {
 			throw new Error("Attachment is already in library " + libraryID);
 		}
 		
+		options = options || {};
+		let linkItems = options.linkItems || true;
+
 		Zotero.DB.requireTransaction();
 		
 		var newAttachment = attachment.clone(libraryID);
@@ -2447,7 +2450,9 @@ Zotero.Attachments = new function(){
 			yield Zotero.File.copyDirectory(dir, newDir);
 		}
 		
-		yield newAttachment.addLinkedItem(attachment);
+		if (linkItems) {
+			yield newAttachment.addLinkedItem(attachment);
+		}
 		return newAttachment.id;
 	});
 	
